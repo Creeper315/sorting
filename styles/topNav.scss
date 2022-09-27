@@ -1,0 +1,19 @@
+@import "./variables.scss";
+
+#top-nav-contain {
+    grid-row: 1;
+    grid-column: 1 / 3;
+    height: 100%;
+    background-color: silver;
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    .sort-btn {
+        width: 100px;
+        height: 60px;
+        background-color: rgb(199, 255, 58);
+        @include centering;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+}

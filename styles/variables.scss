@@ -1,0 +1,18 @@
+@mixin round($size) {
+    width: $size;
+    height: $size;
+    border-radius: $size;
+}
+
+@mixin centering {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+@mixin hover-underline {
+    &:hover {
+        text-decoration: underline;
+        text-decoration-thickness: 2px;
+    }
+}
