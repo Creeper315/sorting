@@ -68,15 +68,19 @@ export enum transType {
     allowTranslate = "allowTranslate",
     none = "none",
 }
+
 export function getTransitionStyle(type: transType, speed?: number) {
+    // console.log("speed: ", speed);
+
     if (!speed) speed = 500;
+    let colorTran = Math.min(300, Math.round(speed * 0.7));
     if (type == transType.allOn) {
-        return `background-color 300ms, transform ${speed}ms, width 800ms, height 800ms`;
+        return `background-color ${colorTran}ms, transform ${speed}ms, width 800ms, height 800ms`;
     }
     if (type == transType.allowTranslate) {
-        return `background-color 300ms, transform ${speed}ms`;
+        return `background-color ${colorTran}ms, transform ${speed}ms`;
     }
     if (type == transType.none) {
-        return `background-color 300ms`;
+        return `background-color ${colorTran}ms`;
     }
 }

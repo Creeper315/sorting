@@ -1,6 +1,6 @@
 import Setting from "./setting";
 import ss from "../../styles/body.module.css";
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useContext } from "react";
 import {
     stepType,
     compute,
@@ -11,12 +11,13 @@ import {
     getTransitionStyle,
     transType,
 } from "../../Algorithm/helper";
-import { selection } from "../../Algorithm/Selection";
-import { SP } from "next/dist/shared/lib/utils";
+import { SortContext } from "../../Context/sortContext";
 
 const Body = () => {
-    const Speed = 500;
+    // const Speed = 800;
     const chart1 = useRef<HTMLDivElement>(null);
+    const childRef = useRef<any>();
+
     // const chart2 = useRef<HTMLDivElement>(null); 如果chart1,2 大小不一样的话，我们才需要 ref chart 2，然后来计算大小？
 
     const [H, setH] = useState(0);
@@ -25,16 +26,16 @@ const Body = () => {
     //
 
     const numCol = useRef<number>(0); // this var will be used twice
-    const maxCol = 15;
-    const maxNum = 50;
+    // const maxCol = 23;
+    // const maxNum = 50;
 
+    const { Algorithm, setAlgorithm } = useContext(SortContext);
     const [All1, setAll1] = useState<colType[]>([]);
     const [All2, setAll2] = useState<colType[]>([]);
     const [TransitionOn, setTransitionOn] = useState<boolean>(true); // 是否需要 width height transition 的 animation
-    const transOnStyle = `all ${Speed}ms ease-out`;
-    const transOffStyle = `transform ${Speed}ms ease-out`;
 
     const AllStep = useRef<stepType[]>([]);
+    const animationIdx = useRef<number>(0);
     const listNum = useRef<number[]>([]);
     const stopped = useRef(false);
     // const [method, setmethod] = useState<Method>(Method.bubble);
@@ -88,26 +89,20 @@ const Body = () => {
     }, [chart1]); // 需要这里的 chat1 吗？是 useref 哎
 
     useEffect(() => {
+        resetArr();
+    }, []);
+
+    function resetArr() {
         let arr1 = [];
-        for (let i = 0; i < maxCol; i++) {
+        for (let i = 0; i < childRef.current.maxCol; i++) {
             arr1.push({ ...noneObj }); // 这里一定要 destructure 这个 object，不然就会创造一个 array，都是同一个 object
         }
         setAll1(arr1);
         let arr2 = [];
-        for (let i = 0; i < maxCol; i++) {
+        for (let i = 0; i < childRef.current.maxCol; i++) {
             arr2.push({ ...noneObj }); // 这里一定要 destructure 这个 object，不然就会创造一个 array，都是同一个 object
         }
         setAll2(arr2);
-    }, []);
-
-    function getRandom(min: number, max?: number) {
-        // 比如，input 进去 3,8。那么就return 一个随机integer：3,4,5,6,7,8 都可以
-        if (max == undefined) {
-            max = min;
-            min = 0;
-        }
-        let n = Math.random() * (max - min) + min;
-        return Math.round(n);
     }
 
     function setNone(obj: colType) {
@@ -119,32 +114,32 @@ const Body = () => {
         obj.div = null;
     }
 
-    // function trans(div: HTMLDivElement, turnOn: boolean) {
-    //     if (turnOn) div.style.transition = transOn;
-    //     if (!turnOn) div.style.transition = transOff;
-    // }
-
     function initArrBoth() {
-        initArr1();
-        initArr2();
+        // 这个相当于不改变 listNum，只是重返 sort 开头
+        setTransitionOn(true);
+        animationIdx.current = 0;
+        let newArr = childRef.current.createArr();
+
+        initArr1(newArr);
+        initArr2(newArr);
     }
-    function initArr1() {
-        const unit = H / maxNum;
-        numCol.current = getRandom(10, maxCol);
-        // let copy = [...All1];
-        listNum.current = [];
-        for (let i = 0; i < numCol.current; i++) {
-            let r = getRandom(1, maxNum);
+    function initArr1(newArr: number[]) {
+        const unit = H / childRef.current.maxNum;
+        // numCol.current = getRandom(10, childRef.current.maxCol);
+        // console.log("listNum.current : ", childRef.current.listNum);
+        for (let i = 0; i < newArr.length; i++) {
+            let r = newArr[i];
+
             let obj = All1[i];
             obj.display = display.show;
             obj.color = Color.default;
             obj.count = r;
-            listNum.current.push(r);
+            // listNum.current.push(r);
             obj.height = `${r * unit}px`;
             // obj.transition = TransitionOn ? transOnStyle : transOffStyle;
         }
 
-        for (let i = numCol.current; i < maxCol; i++) {
+        for (let i = newArr.length; i < childRef.current.maxCol; i++) {
             // let obj = All1[i];
             // obj.display = display.none;
             setNone(All1[i]);
@@ -152,12 +147,12 @@ const Body = () => {
         // console.log("after init All1: ", All1);
         setAll1([...All1]);
     }
-    function initArr2() {
-        for (let i = 0; i < numCol.current; i++) {
+    function initArr2(newArr: number[]) {
+        for (let i = 0; i < newArr.length; i++) {
             // All2[i].display = display.none;
             setInvisible(All2[i]);
         }
-        for (let i = numCol.current; i < maxCol; i++) {
+        for (let i = newArr.length; i < childRef.current.maxCol; i++) {
             // All2[i].display = display.none;
             setNone(All2[i]);
         }
@@ -197,10 +192,6 @@ const Body = () => {
         c2.count = ct1;
         c2.display = d1;
 
-        // if (c1.div && c2.div) {
-        //     c1.div.style.transition = "none";
-        //     c2.div.style.transition = "none";
-        // }
         setAll1([...All1]);
         setAll2([...All2]);
     }
@@ -215,8 +206,9 @@ const Body = () => {
         let toArr = moveObj.a2;
         let fromIdx = moveObj.i1;
         let toIdx = moveObj.i2;
-        const Len = listNum.current.length;
+        const Len = childRef.current.listNum.length;
         if (fromIdx < 0 || toIdx < 0 || fromIdx >= Len || toIdx >= Len) return;
+
         if (fromArr == toArr && fromIdx == toIdx) return;
 
         let a1 = fromArr == 1 ? All1 : All2;
@@ -233,7 +225,6 @@ const Body = () => {
             c1_top = c1.div.offsetTop + c1.div.clientHeight;
             c2_top = c2.div.offsetTop + c2.div.clientHeight;
             transY = c2_top - c1_top;
-            // console.log("transY: ", transY);
             transX = c2.div.offsetLeft - c1.div.offsetLeft;
         }
         c1.transX = transX;
@@ -247,7 +238,7 @@ const Body = () => {
 
         setTimeout(() => {
             swapHeight(c1, c2);
-        }, Speed - 20);
+        }, childRef.current.speed - 20);
         // console.log("c1 ref", All1[3].div?.offsetLeft);
         // console.log("c2 ref", All2[4].div);
     }
@@ -258,17 +249,19 @@ const Body = () => {
             }, ms);
         });
     }
-    // async function tryy() {
-    //     console.log("here 1");
-    //     await wait(800);
-    //     console.log("here 2");
-    // }
-    async function testAnimation() {
+    async function play() {
+        console.log("algo", Algorithm);
         setTransitionOn(false);
-        console.log("listNum.current: ", listNum.current);
-        let [sorted, allStep] = compute(Method.insertion, listNum.current);
-        console.log("sorted, step: ", sorted, allStep);
-        for (let oneStep of allStep) {
+        stopped.current = false;
+        if (AllStep.current.length === 0) {
+            let [sorted, allStep] = compute(
+                Algorithm,
+                childRef.current.listNum
+            );
+            AllStep.current = allStep;
+        }
+        for (let i = animationIdx.current; i < AllStep.current.length; i++) {
+            let oneStep = AllStep.current[i];
             if (stopped.current) break;
             for (let os of oneStep) {
                 // console.log("os: ", os);
@@ -282,11 +275,54 @@ const Body = () => {
             }
             setAll1([...All1]);
             setAll2([...All2]);
-            await wait(Speed);
+            await wait(childRef.current.speed);
+            animationIdx.current++;
         }
     }
+    async function testAnimation() {
+        setTransitionOn(false);
+        // console.log("listNum.current: ", listNum.current);
+        let [sorted, allStep] = compute(Algorithm, childRef.current.listNum);
+        AllStep.current = allStep;
+        console.log("sorted, step: ", sorted, allStep);
+        // for (let i = animationIdx.current; i < allStep.length; i++) {
+        //     let oneStep = allStep[i];
+        //     if (stopped.current) break;
+        //     for (let os of oneStep) {
+        //         console.log("os: ", os);
 
-    function drawColumns(Cols: colType[], which?: 1 | 2) {
+        //         if (os.a != undefined) {
+        //             changeColor(os);
+        //         }
+        //         if (os.a1 != undefined) {
+        //             move(os);
+        //         }
+        //     }
+        //     setAll1([...All1]);
+        //     setAll2([...All2]);
+        //     await wait(childRef.current.speed);
+        //     animationIdx.current++;
+        // }
+
+        // for (let oneStep of allStep) {
+        //     if (stopped.current) break;
+        //     for (let os of oneStep) {
+        //         // console.log("os: ", os);
+
+        //         if (os.a != undefined) {
+        //             changeColor(os);
+        //         }
+        //         if (os.a1 != undefined) {
+        //             move(os);
+        //         }
+        //     }
+        //     setAll1([...All1]);
+        //     setAll2([...All2]);
+        //     await wait(childRef.current.speed);
+        // }
+    }
+
+    function drawColumns(Cols: colType[]) {
         if (H === 0 || W === 0) {
             // 这里是刚开始页面没加载好的时候，h, w 都是 = 0.直到 useEffect 算出来 h, w 值的时候，才行
             return null;
@@ -304,14 +340,21 @@ const Body = () => {
             sty.transform = `translate(${e.transX}px,${e.transY}px)`;
             sty.backgroundColor = e.color;
             if (TransitionOn)
-                sty.transition = getTransitionStyle(transType.allOn, Speed);
+                sty.transition = getTransitionStyle(
+                    transType.allOn,
+                    childRef.current.speed
+                );
             else {
                 if (e.translate)
                     sty.transition = getTransitionStyle(
                         transType.allowTranslate,
-                        Speed
+                        childRef.current.speed
                     );
-                else sty.transition = getTransitionStyle(transType.none);
+                else
+                    sty.transition = getTransitionStyle(
+                        transType.none,
+                        childRef.current.speed
+                    );
             }
 
             return (
@@ -328,24 +371,31 @@ const Body = () => {
     }
 
     return (
-        <div className={ss.bodyContain}>
-            <button onClick={initArrBoth}>init</button>
-            <button onClick={testAnimation}>test</button>
-            {/* <button onClick={() => setTransitionOn(!TransitionOn)}>
-                {TransitionOn ? "is On" : "is Off"}
-            </button> */}
-            <button onClick={() => (stopped.current = !stopped.current)}>
-                Stop
-            </button>
-            <div className={ss.chartContain}>
-                <div className={ss.chart} ref={chart1}>
-                    {drawColumns(All1, 1)}
+        <>
+            <div className={ss.bodyContain}>
+                <button onClick={initArrBoth}>init</button>
+                <button onClick={play}>test</button>
+                <button
+                    onClick={() => {
+                        if (stopped.current) {
+                            stopped.current = false;
+                            play();
+                        } else {
+                            stopped.current = true;
+                        }
+                    }}
+                >
+                    {stopped.current ? "Stopped" : "playing"}
+                </button>
+                <div className={ss.chartContain}>
+                    <div className={ss.chart} ref={chart1}>
+                        {drawColumns(All1)}
+                    </div>
+                    <div className={ss.chart}>{drawColumns(All2)}</div>
                 </div>
-                <div className={ss.chart}>{drawColumns(All2, 2)}</div>
             </div>
-
-            <Setting />
-        </div>
+            <Setting ref={childRef} />
+        </>
     );
 };
 
